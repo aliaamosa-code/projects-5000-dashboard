@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نظام معلومات المشروعات الكبرى | ArcGIS Operational Dashboard (Light)</title>
+
+  <!-- Google Fonts: Cairo & Orbitron -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --esri-bg-main: #f3f4f6;
+      --esri-panel-bg: #ffffff;
+      --esri-panel-border: #e2e8f0;
+      --esri-panel-header: #f8fafc;
+      --esri-blue: #007ac2;
+      --esri-text-main: #1e293b;
+      --esri-text-muted: #64748b;
+      --pub-color: #d97706;
+      --pvt-color: #0284c7;
+      --green-color: #16a34a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', sans-serif;
+    }
+
+    body {
+      background-color: var(--esri-bg-main);
+      color: var(--esri-text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navigation Bar */
+    .esri-navbar {
+      background-color: #ffffff;
+      border-bottom: 2px solid var(--esri-blue);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    .esri-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .esri-logo {
+      background: linear-gradient(135deg, #007ac2, #0284c7);
+      color: white;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 10px rgba(0, 122, 194, 0.25);
+    }
+    .esri-title-text h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .esri-badge {
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      color: #0369a1;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .esri-title-text p {
+      font-size: 0.8rem;
+      color: var(--esri-text-muted);
+    }
+
+    /* Filters Bar */
+    .filters-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--esri-panel-border);
+      padding: 10px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-item label {
+      font-size: 0.82rem;
+      color: var(--esri-text-muted);
+      font-weight: 700;
+    }
+    .filter-item select, .filter-item input {
+      background: #ffffff;
+      color: var(--esri-text-main);
+      border: 1px solid #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .filter-item select:focus, .filter-item input:focus {
+      border-color: var(--esri-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 194, 0.12);
+    }
+
+    /* Layout */
+    .dashboard-container {
+      padding: 16px;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr 340px;
+      grid-template-rows: auto auto 1fr;
+      gap: 14px;
+    }
+
+    /* Widget Panels */
+    .widget-panel {
+      background: var(--esri-panel-bg);
+      border: 1px solid var(--esri-panel-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .widget-header {
+      background: var(--esri-panel-header);
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #334155;
+      border-bottom: 1px solid var(--esri-panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .widget-header i {
+      color: var(--esri-blue);
+    }
+    .widget-body {
+      padding: 14px;
+      flex: 1;
+      position: relative;
+    }
+
+    /* KPI Cards */
+    .kpi-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .indicator-card {
+      background: var(--esri-panel-bg);
+      border: 1px solid var(--esri-panel-border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+    .indicator-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 4px;
+      height: 100%;
+    }
+    .card-total::before { background: var(--esri-blue); }
+    .card-private::before { background: var(--pvt-color); }
+    .card-public::before { background: var(--pub-color); }
+    .card-area::before { background: var(--green-color); }
+
+    .indicator-title {
+      font-size: 0.82rem;
+      color: var(--esri-text-muted);
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+    }
+    .indicator-value {
+      font-size: 1.85rem;
+      font-weight: 900;
+      font-family: 'Orbitron', sans-serif;
+      margin: 8px 0;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .indicator-sub {
+      font-size: 0.75rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* GIS Map */
+    #map-container {
+      width: 100%;
+      height: 100%;
+      min-height: 440px;
+      border-radius: 0 0 8px 8px;
+      background: #e2e8f0;
+    }
+
+    /* Table */
+    .table-container {
+      grid-column: 1 / -1;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+    .esri-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      text-align: right;
+    }
+    .esri-table th {
+      background: #f8fafc;
+      color: #475569;
+      padding: 10px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--esri-panel-border);
+      font-weight: 700;
+    }
+    .esri-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--esri-text-main);
+    }
+    .esri-table tr:hover {
+      background-color: #f8fafc;
+      cursor: pointer;
+    }
+    .sector-tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .tag-private {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+    .tag-public {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-container {
+        grid-template-columns: 1fr;
+      }
+      .kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ArcGIS Top Navigation Bar -->
+  <header class="esri-navbar">
+    <div class="esri-brand">
+      <div class="esri-logo">
+        <i class="fa-solid fa-layer-group"></i>
+      </div>
+      <div class="esri-title-text">
+        <h1>
+          لوحة مؤشرات المشروعات الكبرى (&gt; 5,000 م²)
+          <span class="esri-badge">ArcGIS Operations</span>
+        </h1>
+        <p>مقارنة وتحليل المشروعات: القطاع العام والحكومي مقابل القطاع الخاص | محافظة جنوب سيناء</p>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <button onclick="resetFilters()" style="background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:700;">
+        <i class="fa-solid fa-rotate-right"></i> استعادة التعيين
+      </button>
+      <div style="font-size:0.8rem; color:#0284c7; font-family:'Orbitron', sans-serif; font-weight:700;">
+        <i class="fa-solid fa-satellite-dish"></i> LIVE SPATIAL FEED
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter Controls -->
+  <section class="filters-bar">
+    <div class="filter-item">
+      <label><i class="fa-solid fa-filter"></i> القطاع التنظيمي:</label>
+      <select id="sectorFilter" onchange="applyFilters()">
+        <option value="all">جميع القطاعات</option>
+        <option value="القطاع الخاص">مشروعات القطاع الخاص</option>
+        <option value="القطاع العام">مشروعات القطاع العام والحكومي</option>
+      </select>
+    </div>
+
+    <div class="filter-item">
+      <label><i class="fa-solid fa-city"></i> المدينة / المركز:</label>
+      <select id="cityFilter" onchange="applyFilters()">
+        <option value="all">كل المدن</option>
+        <option value="شرم الشيخ">شرم الشيخ</option>
+        <option value="دهب">دهب</option>
+        <option value="طور سيناء">طور سيناء</option>
+        <option value="نويبع">نويبع</option>
+        <option value="رأس سدر">رأس سدر</option>
+        <option value="سانت كاترين">سانت كاترين</option>
+        <option value="أبو رديس">أبو رديس</option>
+        <option value="أبو زنيمة">أبو زنيمة</option>
+      </select>
+    </div>
+
+    <div class="filter-item" style="flex: 1; max-width: 320px;">
+      <label><i class="fa-solid fa-magnifying-glass"></i> بحث سريع:</label>
+      <input type="text" id="searchInput" oninput="applyFilters()" placeholder="بحث برقم الترخيص، المالك، الموقع..." style="width:100%;" />
+    </div>
+  </section>
+
+  <!-- Main Grid -->
+  <main class="dashboard-container">
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <div class="indicator-card card-total">
+        <div class="indicator-title">
+          <span>إجمالي المشروعات المطابقة</span>
+          <i class="fa-solid fa-chart-pie" style="color:var(--esri-blue);"></i>
+        </div>
+        <div class="indicator-value" id="kpiTotalCount" style="color:#0f172a;">0</div>
+        <div class="indicator-sub">
+          <i class="fa-solid fa-building"></i> ترخيص إنشائي فوق 5,000 م²
+        </div>
+      </div>
+
+      <div class="indicator-card card-private">
+        <div class="indicator-title">
+          <span>مشروعات القطاع الخاص</span>
+          <i class="fa-solid fa-hotel" style="color:var(--pvt-color);"></i>
+        </div>
+        <div class="indicator-value" id="kpiPrivateCount" style="color:var(--pvt-color);">0</div>
+        <div class="indicator-sub" id="kpiPrivateRatio">
+          نسبة 0% من إجمالي المشروعات
+        </div>
+      </div>
+
+      <div class="indicator-card card-public">
+        <div class="indicator-title">
+          <span>مشروعات القطاع العام والحكومي</span>
+          <i class="fa-solid fa-landmark" style="color:var(--pub-color);"></i>
+        </div>
+        <div class="indicator-value" id="kpiPublicCount" style="color:var(--pub-color);">0</div>
+        <div class="indicator-sub" id="kpiPublicRatio">
+          نسبة 0% من إجمالي المشروعات
+        </div>
+      </div>
+
+      <div class="indicator-card card-area">
+        <div class="indicator-title">
+          <span>إجمالي المساحة المرخصة (م²)</span>
+          <i class="fa-solid fa-ruler-combined" style="color:var(--green-color);"></i>
+        </div>
+        <div class="indicator-value" id="kpiTotalArea" style="color:var(--green-color); font-size:1.45rem;">0</div>
+        <div class="indicator-sub">
+          مساحات كبرى بمحافظة جنوب سيناء
+        </div>
+      </div>
+    </div>
+
+    <!-- Left Widget: Doughnut Split -->
+    <div class="widget-panel" style="grid-row: 2; height: 490px;">
+      <div class="widget-header">
+        <span><i class="fa-solid fa-chart-pie"></i> هيكل المشاريع حسب القطاع</span>
+        <span class="esri-badge" id="chartSectorBadge">Sector Split</span>
+      </div>
+      <div class="widget-body" style="display:flex; flex-direction:column; justify-content:center;">
+        <canvas id="sectorDoughnutChart" style="max-height:220px;"></canvas>
+        <div style="margin-top:16px; border-top:1px solid #f1f5f9; padding-top:12px; font-size:0.78rem;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span><i class="fa-solid fa-circle" style="color:var(--pvt-color); font-size:8px;"></i> مساحة القطاع الخاص:</span>
+            <strong id="lblAreaPvt" style="color:var(--pvt-color);">0 م²</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span><i class="fa-solid fa-circle" style="color:var(--pub-color); font-size:8px;"></i> مساحة القطاع العام:</span>
+            <strong id="lblAreaPub" style="color:var(--pub-color);">0 م²</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Widget: Esri Light Gray Canvas Map -->
+    <div class="widget-panel" style="grid-row: 2; height: 490px;">
+      <div class="widget-header">
+        <span><i class="fa-solid fa-map-location-dot"></i> التوزيع الجغرافي للمشروعات (ArcGIS Web Map)</span>
+        <span style="font-size:0.75rem; color:#64748b;">خريطة إيزري الرمادية الفاتحة الرسمية</span>
+      </div>
+      <div class="widget-body" style="padding:0;">
+        <div id="map-container"></div>
+      </div>
+    </div>
+
+    <!-- Right Widget: Bar Chart -->
+    <div class="widget-panel" style="grid-row: 2; height: 490px;">
+      <div class="widget-header">
+        <span><i class="fa-solid fa-chart-column"></i> توزيع المشروعات بالمدن والقطاع</span>
+        <span class="esri-badge">Spatial Distribution</span>
+      </div>
+      <div class="widget-body">
+        <canvas id="citiesBarChart" style="max-height: 420px;"></canvas>
+      </div>
+    </div>
+
+    <!-- Bottom Data Table -->
+    <div class="widget-panel table-container">
+      <div class="widget-header">
+        <span><i class="fa-solid fa-table-list"></i> سجلات التراخيص والمشروعات التفصيلية (قاعدة البيانات الجغرافية)</span>
+        <span id="recordsCountBadge" class="esri-badge">0 سجل</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="esri-table">
+          <thead>
+            <tr>
+              <th># الترخيص</th>
+              <th>القطاع</th>
+              <th>المرخص له / المشروع</th>
+              <th>المدينة والمنطقة</th>
+              <th>المساحة (م²)</th>
+              <th>النوع</th>
+              <th>السنة</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody id="projectsTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const rawProjects = [
+      { id: "109", year: 2010, type: "سكني", owner: "شركة بترول بلاعيم", city: "أبو رديس", area: 110000, sector: "القطاع العام", sub: "بترول / قطاع عام مشترك", loc: "منطقة إمتياز بلاعيم" },
+      { id: "98", year: 2016, type: "سكني", owner: "المرحلة الثالثة إسكان اجتماعي (عرب تحيا مصر)", city: "أبو رديس", area: 35000, sector: "القطاع العام", sub: "إسكان حكومي", loc: "مشروع تحيا مصر" },
+      { id: "13", year: 2005, type: "سكني", owner: "عزت محمد عبد الله", city: "أبو زنيمة", area: 5000, sector: "القطاع الخاص", sub: "أفراد / سياحي", loc: "تقسيم الإسكان السياحي" },
+      { id: "158", year: 1996, type: "إسكان سياحي", owner: "الجمعية التعاونية للعاملين بديوان المحافظة", city: "طور سيناء", area: 250000, sector: "القطاع العام", sub: "إسكان تعاوني نفع عام", loc: "منطقة حمام موسى" },
+      { id: "15", year: 1992, type: "تعليمي/سكني", owner: "المعهد العالي للدراسات التعاونية والإدارية", city: "طور سيناء", area: 30000, sector: "القطاع العام", sub: "مؤسسة تعليمية", loc: "أكتوبر 1" },
+      { id: "48", year: 2009, type: "سكني", owner: "الجمعية التعاونية للإسكان لأهالي دهب", city: "دهب", area: 150000, sector: "القطاع العام", sub: "إسكان تعاوني نفع عام", loc: "شارع النصر" },
+      { id: "2", year: 2015, type: "سكني", owner: "الوحدة المحلية لمدينة دهب (إسكان اجتماعي تمويل الإمارات)", city: "دهب", area: 20982, sector: "القطاع العام", sub: "إسكان اجتماعي حكومي", loc: "العصلة - امتداد السلام" },
+      { id: "75", year: 1998, type: "سكني", owner: "شركة حسين حميد حسين وشركاه", city: "دهب", area: 6000, sector: "القطاع الخاص", sub: "تطوير عقاري", loc: "قطاع البلوهول" },
+      { id: "49", year: 2015, type: "إسكان سياحي", owner: "بدوي علي عامر", city: "رأس سدر", area: 297325, sector: "القطاع الخاص", sub: "سياحي استثماري", loc: "تقسيم إسكان الجمعية التعاونية" },
+      { id: "3", year: 2014, type: "سكني بدوي", owner: "مشروع 20 بيت بدوي (سامي جمعة عودة)", city: "سانت كاترين", area: 15000, sector: "القطاع العام", sub: "تنمية متكاملة وبدوية", loc: "الطرفة - تجمع السلام" },
+      { id: "1", year: 2013, type: "سكني بدوي", owner: "الجهاز المركزي لتعمير سيناء (20 بيت بالسعال)", city: "سانت كاترين", area: 11948, sector: "القطاع العام", sub: "حكومي / تعمير سيناء", loc: "قرية سعال" },
+      { id: "58", year: 1993, type: "إسكان فندقي", owner: "شركة سيناء للتنمية السياحية", city: "شرم الشيخ", area: 240000, sector: "القطاع الخاص", sub: "فنادق ومنتجعات", loc: "شمال خليج نعمة" },
+      { id: "103", year: 1998, type: "إسكان سياحي", owner: "شركة شهد للتنمية العقارية (قرية شهد)", city: "شرم الشيخ", area: 192500, sector: "القطاع الخاص", sub: "تطوير سياحي", loc: "ربوة خليج نعمة" },
+      { id: "83", year: 1995, type: "إسكان سياحي", owner: "عبد الحليم بسيوني (شركة سيناء للاستثمارات)", city: "شرم الشيخ", area: 144581, sector: "القطاع الخاص", sub: "سياحي", loc: "هضبة أم السيد" },
+      { id: "32", year: 1996, type: "إسكان فندقي", owner: "شركة الساحل جنوب سيناء", city: "شرم الشيخ", area: 97200, sector: "القطاع الخاص", sub: "فندقي", loc: "هضبة أم السيد" },
+      { id: "81", year: 2000, type: "إسكان فندقي", owner: "خميس بن بطي الرميثي", city: "شرم الشيخ", area: 63214, sector: "القطاع الخاص", sub: "استثمار فندقي", loc: "شمال خليج نعمة" },
+      { id: "33", year: 2018, type: "سكني/تطوير", owner: "محافظة جنوب سيناء (مشروع 496 عشوائيات)", city: "شرم الشيخ", area: 45000, sector: "القطاع العام", sub: "حكومي / صندوق التنمية الحضرية", loc: "الرويسات" },
+      { id: "43", year: 2009, type: "إسكان سياحي", owner: "شركة لاكوست للسياحة", city: "شرم الشيخ", area: 80000, sector: "القطاع الخاص", sub: "سياحي", loc: "ربوة خليج نعمة" },
+      { id: "12", year: 2011, type: "سكني", owner: "علي عثمان السيد محمد", city: "شرم الشيخ", area: 12000, sector: "القطاع الخاص", sub: "سكني استثماري", loc: "حي النور - النخيل" },
+      { id: "20", year: 1999, type: "إسكان فندقي", owner: "فندق مكسيكانا (شركة صحارا)", city: "شرم الشيخ", area: 10000, sector: "القطاع الخاص", sub: "موتيل ومنتجع", loc: "هضبة أم السيد" },
+      { id: "108", year: 1995, type: "إسكان فندقي", owner: "شركة نعمة للجولف والاستثمار السياحي", city: "شرم الشيخ", area: 1000000, sector: "القطاع الخاص", sub: "منتجع سياحي عالمي", loc: "شمال خليج نعمة" },
+      { id: "78", year: 1999, type: "إسكان فندقي", owner: "شركة حمام موسى للتنمية", city: "طور سيناء", area: 477366, sector: "القطاع الخاص", sub: "سياحي علاجي", loc: "منطقة حمام موسى" },
+      { id: "18", year: 1992, type: "إسكان فندقي", owner: "شركة أبو ظبي للاستثمارات السياحية", city: "شرم الشيخ", area: 450000, sector: "القطاع الخاص", sub: "استثمار أجنبي", loc: "ربوة خليج نعمة" },
+      { id: "54", year: 1995, type: "إسكان فندقي", owner: "الشركة المصرية العامة للسياحة والفنادق (إيجوث)", city: "دهب", area: 300000, sector: "القطاع العام", sub: "قطاع أعمال عام سياحي", loc: "قطاع وادي قني" },
+      { id: "33", year: 1995, type: "إسكان فندقي", owner: "فندق شيراتون شرم الشيخ (الاتحاد المصري)", city: "شرم الشيخ", area: 245000, sector: "القطاع الخاص", sub: "فنادق عالمية", loc: "شمال خليج نعمة" },
+      { id: "1", year: 1994, type: "إسكان فندقي", owner: "شركة رامو للسياحة والفنادق", city: "شرم الشيخ", area: 236713, sector: "القطاع الخاص", sub: "سياحة وفنادق", loc: "شرم الشيخ" },
+      { id: "216", year: 1993, type: "إسكان فندقي", owner: "شركة الاتحاد العربي للنقل والسياحة (سوبر جيت)", city: "شرم الشيخ", area: 200000, sector: "القطاع العام", sub: "قطاع أعمال عام نقل/سياحة", loc: "شرم الشيخ" },
+      { id: "52", year: 1998, type: "إسكان سياحي", owner: "شركة شرم مصر للتنمية العقارية", city: "شرم الشيخ", area: 200000, sector: "القطاع الخاص", sub: "تنمية عقارية", loc: "هضبة أم السيد" },
+      { id: "27", year: 2011, type: "إسكان فندقي", owner: "شركة الفداء المحدودة (قرية الفدا)", city: "رأس سدر", area: 198882, sector: "القطاع الخاص", sub: "قرى سياحية", loc: "جنوب المدينة" },
+      { id: "92", year: 1996, type: "إسكان فندقي", owner: "شركة كونتيننتال للاستثمارات السياحية", city: "شرم الشيخ", area: 177642, sector: "القطاع الخاص", sub: "فنادق", loc: "هضبة أم السيد" },
+      { id: "60", year: 2010, type: "إسكان فندقي", owner: "الشركة المصرية للتنمية والمشروعات العقارية", city: "شرم الشيخ", area: 176791, sector: "القطاع الخاص", sub: "استثمار عقاري", loc: "شمال خليج نعمة" },
+      { id: "47", year: 1997, type: "إسكان فندقي", owner: "شركة بلازا للمشروعات السياحية", city: "شرم الشيخ", area: 173740, sector: "القطاع الخاص", sub: "سياحي", loc: "شمال خليج نعمة" },
+      { id: "89", year: 1997, type: "إسكان فندقي", owner: "شركة شارم دريمز للاستثمار السياحي", city: "شرم الشيخ", area: 159965, sector: "القطاع الخاص", sub: "منتجعات سياحية", loc: "ربوة خليج نعمة" },
+      { id: "105", year: 1996, type: "إسكان فندقي", owner: "شركة الفتوح العقارية", city: "شرم الشيخ", area: 145888, sector: "القطاع الخاص", sub: "عقاري سياحي", loc: "شمال نعمة" },
+      { id: "1", year: 1999, type: "إسكان فندقي", owner: "شركة نسكو مصر للاستثمارات السياحية", city: "شرم الشيخ", area: 120000, sector: "القطاع الخاص", sub: "سياحة وفنادق", loc: "شمال نعمة" },
+      { id: "27", year: 2009, type: "إسكان فندقي", owner: "شركة أوريكانا للسياحة (حسام دريالة)", city: "دهب", area: 112194, sector: "القطاع الخاص", sub: "فنادق", loc: "وادي قني" },
+      { id: "31", year: 1996, type: "إسكان فندقي", owner: "شركة الإسكندرية السعودية للمشروعات", city: "شرم الشيخ", area: 100240, sector: "القطاع الخاص", sub: "استثمار مشترك", loc: "مدخل بيت القرش" },
+      { id: "204", year: 1992, type: "إسكان فندقي", owner: "شركة الدوحة للاستثمار السياحي", city: "رأس سدر", area: 100000, sector: "القطاع الخاص", sub: "سياحي", loc: "رأس سدر" },
+      { id: "16", year: 1996, type: "إسكان فندقي", owner: "شركة كيروسيز للاستثمار السياحي", city: "شرم الشيخ", area: 95000, sector: "القطاع الخاص", sub: "فنادق ومنتجعات", loc: "هضبة أم السيد" },
+      { id: "31", year: 2008, type: "إسكان فندقي", owner: "دهب العالمية للتنمية السياحية", city: "دهب", area: 90670, sector: "القطاع الخاص", sub: "سياحي", loc: "شارع التحرير" },
+      { id: "47", year: 1995, type: "إسكان فندقي", owner: "شركة راجا للسياحة والفنادق", city: "شرم الشيخ", area: 86000, sector: "القطاع الخاص", sub: "فنادق", loc: "هضبة أم السيد" },
+      { id: "33", year: 1999, type: "إسكان فندقي", owner: "شركة أركاديا للاستثمار والتنمية السياحية", city: "دهب", area: 85760, sector: "القطاع الخاص", sub: "فندقي", loc: "قطاع العصلة" },
+      { id: "74", year: 1998, type: "إسكان فندقي", owner: "مجموعة كليوباترا جروب للتنمية المتكاملة", city: "شرم الشيخ", area: 71295, sector: "القطاع الخاص", sub: "مجموعة استثمارية كبرى", loc: "هضبة أم السيد" },
+      { id: "70", year: 2006, type: "إسكان فندقي", owner: "شركة روزي للتنمية السياحية", city: "نويبع", area: 53423, sector: "القطاع الخاص", sub: "سياحي", loc: "نويبع" },
+      { id: "27", year: 1987, type: "إسكان فندقي", owner: "شركة النجدي للسياحة", city: "نويبع", area: 50000, sector: "القطاع الخاص", sub: "سياحي", loc: "الترابين" },
+      { id: "6", year: 2003, type: "إسكان سياحي", owner: "الجمعية التعاونية للبناء للؤلؤة نويبع", city: "نويبع", area: 100000, sector: "القطاع العام", sub: "إسكان تعاوني", loc: "قرية واسط" },
+      { id: "11", year: 2015, type: "إسكان اجتماعي", owner: "محافظة جنوب سيناء (حي الأمل نويبع)", city: "نويبع", area: 100000, sector: "القطاع العام", sub: "إسكان حكومي بديل", loc: "منطقة المدينة" },
+      { id: "32", year: 1987, type: "إسكان سياحي", owner: "قرية الصيادين (شركة الاستثمار العربي)", city: "نويبع", area: 32660, sector: "القطاع الخاص", sub: "قرى سياحية", loc: "منطقة الميناء" },
+      { id: "17", year: 1993, type: "إسكان سياحي", owner: "شركة سيناء للفنادق ونوادي الغوص (قرية نويبع)", city: "نويبع", area: 48000, sector: "القطاع الخاص", sub: "سياحة وغوص", loc: "منطقة المدينة" },
+      { id: "67", year: 1997, type: "إسكان فندقي", owner: "شركة كونكورد للتنمية السياحية", city: "شرم الشيخ", area: 32800, sector: "القطاع الخاص", sub: "منتجع سياحي", loc: "ربوة خليج نعمة" },
+      { id: "19", year: 2011, type: "إسكان فندقي", owner: "الجهاز التنفيذي للمنطقة الحرة (شركة الخليل)", city: "شرم الشيخ", area: 5000, sector: "القطاع العام", sub: "جهاز حكومي تنفيذي", loc: "هضبة أم السيد" },
+      { id: "100", year: 1980, type: "إسكان فندقي", owner: "شركة ترافلز إيجيبت (مورجين لاند)", city: "سانت كاترين", area: 20000, sector: "القطاع الخاص", sub: "سياحي بيئي", loc: "سانت كاترين" }
+    ];
+
+    const cityCoords = {
+      "شرم الشيخ": [27.9158, 34.3299],
+      "دهب": [28.5097, 34.5136],
+      "طور سيناء": [28.2415, 33.6231],
+      "نويبع": [29.0347, 34.6644],
+      "رأس سدر": [29.5933, 32.7178],
+      "سانت كاترين": [28.5559, 33.9750],
+      "أبو رديس": [28.9044, 33.1956],
+      "أبو زنيمة": [29.0436, 33.1095]
+    };
+
+    let filteredData = [...rawProjects];
+    let map, markersLayer;
+    let doughnutChart, barChart;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initMap();
+      initCharts();
+      applyFilters();
+    });
+
+    function initMap() {
+      map = L.map("map-container", {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([28.6, 33.9], 8);
+
+      // Esri Light Gray Canvas Base (خلفية بيضاء ورمادية فاتحة رسمية بدون وترمارك)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16
+      }).addTo(map);
+
+      // Esri Light Gray Canvas Reference (تسميات المدن والحدود)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+    }
+
+    function initCharts() {
+      // 1. Doughnut Chart
+      const ctxDoughnut = document.getElementById("sectorDoughnutChart").getContext("2d");
+      doughnutChart = new Chart(ctxDoughnut, {
+        type: "doughnut",
+        data: {
+          labels: ["قطاع خاص", "قطاع عام وحكومي"],
+          datasets: [{
+            data: [0, 0],
+            backgroundColor: ["#0284c7", "#d97706"],
+            borderColor: "#ffffff",
+            borderWidth: 3,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { color: "#334155", font: { family: "Cairo", size: 11, weight: 'bold' } }
+            }
+          },
+          cutout: "68%"
+        }
+      });
+
+      // 2. Bar Chart
+      const ctxBar = document.getElementById("citiesBarChart").getContext("2d");
+      barChart = new Chart(ctxBar, {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "القطاع الخاص",
+              data: [],
+              backgroundColor: "#0284c7"
+            },
+            {
+              label: "القطاع العام",
+              data: [],
+              backgroundColor: "#d97706"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          scales: {
+            x: {
+              stacked: true,
+              grid: { color: "#e2e8f0" },
+              ticks: { color: "#64748b", font: { family: "Orbitron" } }
+            },
+            y: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { color: "#1e293b", font: { family: "Cairo", weight: 'bold' } }
+            }
+          },
+          plugins: {
+            legend: {
+              position: "top",
+              labels: { color: "#334155", font: { family: "Cairo", weight: 'bold' } }
+            }
+          }
+        }
+      });
+    }
+
+    function applyFilters() {
+      const sectorVal = document.getElementById("sectorFilter").value;
+      const cityVal = document.getElementById("cityFilter").value;
+      const searchVal = document.getElementById("searchInput").value.trim().toLowerCase();
+
+      filteredData = rawProjects.filter(p => {
+        const matchSector = (sectorVal === "all") || (p.sector === sectorVal);
+        const matchCity = (cityVal === "all") || (p.city === cityVal);
+        const matchSearch = !searchVal || 
+          p.owner.toLowerCase().includes(searchVal) || 
+          p.loc.toLowerCase().includes(searchVal) ||
+          p.city.toLowerCase().includes(searchVal) ||
+          p.id.includes(searchVal);
+        return matchSector && matchCity && matchSearch;
+      });
+
+      updateKPIs();
+      updateCharts();
+      updateMap();
+      renderTable();
+    }
+
+    function resetFilters() {
+      document.getElementById("sectorFilter").value = "all";
+      document.getElementById("cityFilter").value = "all";
+      document.getElementById("searchInput").value = "";
+      applyFilters();
+      map.setView([28.6, 33.9], 8);
+    }
+
+    function updateKPIs() {
+      const totalCount = filteredData.length;
+      const privateProjects = filteredData.filter(d => d.sector === "القطاع الخاص");
+      const publicProjects = filteredData.filter(d => d.sector === "القطاع العام");
+
+      const pvtCount = privateProjects.length;
+      const pubCount = publicProjects.length;
+
+      const totalArea = filteredData.reduce((acc, c) => acc + c.area, 0);
+      const pvtArea = privateProjects.reduce((acc, c) => acc + c.area, 0);
+      const pubArea = publicProjects.reduce((acc, c) => acc + c.area, 0);
+
+      document.getElementById("kpiTotalCount").textContent = totalCount;
+      document.getElementById("kpiPrivateCount").textContent = pvtCount;
+      document.getElementById("kpiPublicCount").textContent = pubCount;
+      document.getElementById("kpiTotalArea").textContent = totalArea.toLocaleString() + " م²";
+
+      const pvtRatio = totalCount ? Math.round((pvtCount / totalCount) * 100) : 0;
+      const pubRatio = totalCount ? Math.round((pubCount / totalCount) * 100) : 0;
+
+      document.getElementById("kpiPrivateRatio").textContent = `تمثل ${pvtRatio}% من إجمالي المشروعات`;
+      document.getElementById("kpiPublicRatio").textContent = `تمثل ${pubRatio}% من إجمالي المشروعات`;
+
+      document.getElementById("lblAreaPvt").textContent = pvtArea.toLocaleString() + " م²";
+      document.getElementById("lblAreaPub").textContent = pubArea.toLocaleString() + " م²";
+      document.getElementById("recordsCountBadge").textContent = `${totalCount} مشروع`;
+    }
+
+    function updateMap() {
+      markersLayer.clearLayers();
+
+      const cityMapStats = {};
+
+      filteredData.forEach(p => {
+        if (!cityMapStats[p.city]) {
+          cityMapStats[p.city] = { pvt: 0, pub: 0, total: 0, area: 0 };
+        }
+        cityMapStats[p.city].total += 1;
+        cityMapStats[p.city].area += p.area;
+        if (p.sector === "القطاع الخاص") cityMapStats[p.city].pvt += 1;
+        else cityMapStats[p.city].pub += 1;
+      });
+
+      Object.keys(cityMapStats).forEach(city => {
+        const coords = cityCoords[city];
+        if (!coords) return;
+
+        const stat = cityMapStats[city];
+        const dominantColor = stat.pub > stat.pvt ? "#d97706" : "#0284c7";
+        const radius = Math.min(26, Math.max(12, stat.total * 2.5));
+
+        const customIcon = L.divIcon({
+          className: "esri-pin",
+          html: `<div style="
+            background: ${dominantColor};
+            width: ${radius * 2}px;
+            height: ${radius * 2}px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 11px;
+            font-family: 'Orbitron';
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+          ">${stat.total}</div>`,
+          iconSize: [radius * 2, radius * 2]
+        });
+
+        const marker = L.marker(coords, { icon: customIcon });
+        marker.bindPopup(`
+          <div style="font-family:'Cairo'; text-align:right; min-width:180px; color:#1e293b;">
+            <h4 style="margin:0 0 6px 0; color:#007ac2; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">مدينة ${city}</h4>
+            <div style="font-size:12px; margin-bottom:3px;">إجمالي المشروعات: <strong>${stat.total}</strong></div>
+            <div style="font-size:12px; color:#0284c7;">مشروعات قطاع خاص: <strong>${stat.pvt}</strong></div>
+            <div style="font-size:12px; color:#d97706;">مشروعات قطاع عام: <strong>${stat.pub}</strong></div>
+            <div style="font-size:12px; color:#16a34a; margin-top:4px;">إجمالي المساحات: <strong>${stat.area.toLocaleString()} م²</strong></div>
+          </div>
+        `);
+        markersLayer.addLayer(marker);
+      });
+    }
+
+    function updateCharts() {
+      const pvtCount = filteredData.filter(d => d.sector === "القطاع الخاص").length;
+      const pubCount = filteredData.filter(d => d.sector === "القطاع العام").length;
+
+      doughnutChart.data.datasets[0].data = [pvtCount, pubCount];
+      doughnutChart.update();
+
+      const cities = ["شرم الشيخ", "دهب", "نويبع", "طور سيناء", "رأس سدر", "سانت كاترين", "أبو رديس", "أبو زنيمة"];
+      const pvtCounts = [];
+      const pubCounts = [];
+
+      cities.forEach(c => {
+        pvtCounts.push(filteredData.filter(d => d.city === c && d.sector === "القطاع الخاص").length);
+        pubCounts.push(filteredData.filter(d => d.city === c && d.sector === "القطاع العام").length);
+      });
+
+      barChart.data.labels = cities;
+      barChart.data.datasets[0].data = pvtCounts;
+      barChart.data.datasets[1].data = pubCounts;
+      barChart.update();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("projectsTableBody");
+      tbody.innerHTML = "";
+
+      if (filteredData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">لا توجد مشروعات مطابقة لمعايير البحث</td></tr>`;
+        return;
+      }
+
+      filteredData.forEach(p => {
+        const tr = document.createElement("tr");
+        const tagClass = p.sector === "القطاع الخاص" ? "tag-private" : "tag-public";
+
+        tr.innerHTML = `
+          <td style="font-family:'Orbitron'; font-weight:700; color:#0284c7;">#${p.id}</td>
+          <td><span class="sector-tag ${tagClass}">${p.sector}</span></td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${p.owner}</div>
+            <div style="font-size:0.72rem; color:#64748b;">${p.sub}</div>
+          </td>
+          <td>${p.city} - ${p.loc}</td>
+          <td style="font-family:'Orbitron'; font-weight:bold; color:#16a34a;">${p.area.toLocaleString()}</td>
+          <td>${p.type}</td>
+          <td style="font-family:'Orbitron'; font-weight:600;">${p.year}</td>
+          <td><span style="color:#16a34a; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-circle-check"></i> سارية</span></td>
+        `;
+
+        tr.onclick = () => {
+          const coords = cityCoords[p.city];
+          if (coords) {
+            map.flyTo(coords, 12, { duration: 1.2 });
+          }
+        };
+
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>
